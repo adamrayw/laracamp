@@ -17,7 +17,7 @@ Route::get('/', function () {
     return view('welcome');
 })->name('welcome');
 
-Route::get('checkout', function () {
+Route::get('checkout/{camp:slug}', function () {
     return view('checkout');
 })->name('checkout');
 
