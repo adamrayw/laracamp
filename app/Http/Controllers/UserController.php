@@ -21,7 +21,7 @@ class UserController extends Controller
 
     public function handleUserCallback()
     {
-        $callback = Socialite::driver('google')->stateless()->user();
+        $callback = Socialite::driver('google')->user();
         $data = [
             'name' => $callback->getName(),
             'email' => $callback->getEmail(),
