@@ -25,7 +25,10 @@ Route::get('/', function () {
 Route::get('sign-in-google', [UserController::class, 'google'])->name('user.login.google');
 Route::get('auth/google/callback', [UserController::class, 'handleUserCallback'])->name('user.google.callback');
 
-
+// test email template
+Route::get('testmail', function () {
+    return new \App\Mail\User\AfterRegister(auth()->user());
+});
 
 Route::middleware(['auth'])->group(function () {
     // chekout routes
