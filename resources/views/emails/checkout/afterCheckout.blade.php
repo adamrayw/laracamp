@@ -1,10 +1,12 @@
 @component('mail::message')
-# Introduction
+# Register Camp: {{ $checkout->Camp->title }}
 
-The body of your message.
+Hi {{ $checkout->User->name }}
+<br>
+Thank You for registering for the camp, please see payment instructions by clicking the button below.
 
-@component('mail::button', ['url' => ''])
-Button Text
+@component('mail::button', ['url' => route('user.checkout.invoice', $checkout->id)])
+Get Invoice
 @endcomponent
 
 Thanks,<br>
