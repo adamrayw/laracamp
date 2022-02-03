@@ -7,4 +7,3 @@ Laracamp provides several bootcamp options with each benefit that users get.
 - OAuth Google
 - Send email after registration and after checkout
 - Midtrans integration
-And many more features in progress!
