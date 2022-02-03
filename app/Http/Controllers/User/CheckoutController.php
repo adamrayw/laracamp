@@ -10,6 +10,7 @@ use App\Http\Requests\User\Checkout\Store;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Checkout\AfterCheckout;
+use Exception;
 use Illuminate\Support\Str;
 use Midtrans;
 
@@ -18,7 +19,7 @@ class CheckoutController extends Controller
 
     public function __construct()
     {
-        Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
+        Midtrans\Config::$serverKey = env('MIDTRANS_SERVERKEY');
         Midtrans\Config::$isProduction = env('MIDTRANS_IS_PRODUCTION');
         Midtrans\Config::$isSanitized = env('MIDTRANS_IS_SANITIZED');
         Midtrans\Config::$is3ds = env('MIDTRANS_IS_3DS');
@@ -42,10 +43,10 @@ class CheckoutController extends Controller
     public function create(Camp $camp, Request $request)
     {
         if ($camp->isRegistered) {
-            $request->session()->flash('error', 'You have already registered for this camp');
+            $request->session()->flash('error', "You already registered on {$camp->title} camp.");
             return redirect(route('user.dashboard'));
         }
-
+        
         return view('checkout.create', [
             'camp' => $camp,
         ]);
@@ -59,6 +60,7 @@ class CheckoutController extends Controller
      */
     public function store(Store $request, Camp $camp)
     {
+        // mapping request data
         $data = $request->all();
         $data['user_id'] = Auth::id();
         $data['camp_id'] = $camp->id;
@@ -68,9 +70,11 @@ class CheckoutController extends Controller
         $user->email = $data['email'];
         $user->name = $data['name'];
         $user->occupation = $data['occupation'];
+        $user->phone = $data['phone'];
+        $user->address = $data['address'];
         $user->save();
 
-        // creaete checkout
+        // create checkout
         $checkout = Checkout::create($data);
         $this->getSnapRedirect($checkout);
 
@@ -135,12 +139,11 @@ class CheckoutController extends Controller
      */
     public function getSnapRedirect(Checkout $checkout)
     {
-        $price = $checkout->camp->price * 1000;
-        $orderId = $checkout->id . '-' . Str::random(5);
+        $orderId = $checkout->id.'-'.Str::random(5);
+        $price = $checkout->Camp->price * 1000;
 
         $checkout->midtrans_booking_code = $orderId;
 
-        // transaction details
         $transaction_details = [
             'order_id' => $orderId,
             'gross_amount' => $price
@@ -150,27 +153,26 @@ class CheckoutController extends Controller
             'id' => $orderId,
             'price' => $price,
             'quantity' => 1,
-            'name' => "Payment for camp {$checkout->camp->title} Camp" 
+            'name' => "Payment for {$checkout->Camp->title} Camp"
         ];
 
         $userData = [
-            'first_name' => $checkout->User->name,
-            'last_name' => '',
-            'address' => $checkout->User->address,
-            'city' => '',
-            'postal_code' => '',
-            'phone' => $checkout->User->phone,
-            'country_code' => 'IDN'
+            "first_name" => $checkout->User->name,
+            "last_name" => "",
+            "address" => $checkout->User->address,
+            "city" => "",
+            "postal_code" => "",
+            "phone" => $checkout->User->phone,
+            "country_code" => "IDN",
         ];
-        
-        // customer details
+
         $customer_details = [
-            'first_name' => $checkout->User->name,
-            'last_name' => '',
-            'email' => $checkout->User->email,
-            'phone' => $checkout->User->phone,
-            'billing_address' => $userData,
-            'shipping_address' => $userData,
+            "first_name" => $checkout->User->name,
+            "last_name" => "",
+            "email" => $checkout->User->email,
+            "phone" => $checkout->User->phone,
+            "billing_address" => $userData,
+            "shipping_address" => $userData,
         ];
 
         $midtrans_params = [
@@ -180,19 +182,23 @@ class CheckoutController extends Controller
         ];
 
         try {
-            $paymentUrl = \Midtrans\Snap::createTransaction($params)->redirect_url;
+            // Get Snap Payment Page URL
+            $paymentUrl = \Midtrans\Snap::createTransaction($midtrans_params)->redirect_url;
             $checkout->midtrans_url = $paymentUrl;
             $checkout->save();
 
             return $paymentUrl;
-        } catch (\Throwable $e) {
-            return false;
+        } catch (Exception $e) {
+            $checkout->midtrans_url = $e;
+            $checkout->save();
+
+            return $e;
         }
     }
 
     public function midtransCallback(Request $request)
     {
-        $notif = new Midtrans\Notification();
+        $notif = $request->method() == 'POST' ? new Midtrans\Notification() : Midtrans\Transaction::status($request->order_id);
 
         $transaction_status = $notif->transaction_status;
         $fraud = $notif->fraud_status;
@@ -202,21 +208,21 @@ class CheckoutController extends Controller
 
         if ($transaction_status == 'capture') {
             if ($fraud == 'challenge') {
-            // TODO Set payment status in merchant's database to 'challenge'   
+                // TODO Set payment status in merchant's database to 'challenge'
                 $checkout->payment_status = 'pending';
             }
             else if ($fraud == 'accept') {
-            // TODO Set payment status in merchant's database to 'success'
+                // TODO Set payment status in merchant's database to 'success'
                 $checkout->payment_status = 'paid';
             }
         }
         else if ($transaction_status == 'cancel') {
             if ($fraud == 'challenge') {
-            // TODO Set payment status in merchant's database to 'failure'
+                // TODO Set payment status in merchant's database to 'failure'
                 $checkout->payment_status = 'failed';
             }
             else if ($fraud == 'accept') {
-            // TODO Set payment status in merchant's database to 'failure'
+                // TODO Set payment status in merchant's database to 'failure'
                 $checkout->payment_status = 'failed';
             }
         }
@@ -240,5 +246,4 @@ class CheckoutController extends Controller
         $checkout->save();
         return view('checkout/success');
     }
-
 }
