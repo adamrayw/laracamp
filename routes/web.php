@@ -35,6 +35,9 @@ Route::get('testmail', function () {
     return new \App\Mail\User\AfterRegister(auth()->user());
 });
 
+// midtrans routes
+Route::get('payment/success', [CheckoutController::class, 'midtransCallback']);
+Route::post('payment/success', [CheckoutController::class, 'midtransCallback']);
 
 // khusus untuk yang sudah login
 Route::middleware(['auth'])->group(function () {
