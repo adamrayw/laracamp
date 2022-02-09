@@ -18,7 +18,6 @@
                                     <th>Price</th>
                                     <th>Register Date</th>
                                     <th>Paid Status</th>
-                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -26,24 +25,13 @@
                                     <tr>
                                         <td>{{ $checkout->User->name }}</td>
                                         <td>{{ $checkout->Camp->title }}</td>
-                                        <td>{{ $checkout->Camp->price }}</td>
+                                        <td>{{ number_format($checkout->Camp->price * 1000, 2, ',', '.') }}</td>
                                         <td>{{ $checkout->created_at->format('M d Y') }}</td>
                                         <td>
-                                            @if ($checkout->is_paid)
+                                            @if ($checkout->payment_status == 'paid')
                                                 <span class="badge bg-success">Paid</span>
                                             @else
                                                 <span class="badge bg-warning">Waiting for payment</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if (!$checkout->is_paid)
-                                            <form action="{{ route('admin.checkout.update', $checkout->id) }}" method="POST">
-                                                @csrf
-                                                <button class="btn btn-primary btn-sm">
-                                                    Set to paid
-                                                </button>
-                                            </form>
-
                                             @endif
                                         </td>
                                     </tr>
